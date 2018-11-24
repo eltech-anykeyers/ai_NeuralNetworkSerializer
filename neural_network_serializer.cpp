@@ -16,26 +16,34 @@ void NeuralNetworkSerializer::serialize( const NeuralNetworkData& data ) const
     device->open( QIODevice::WriteOnly );
     QDataStream stream = QDataStream( device.get() );
 
-    /// Size of weights matrix.
-    stream << static_cast< quint32 >( data.getNumberOfNeurons() );
-    stream << static_cast< quint32 >( data.getInputSize() );
-
     /// Image size.
     stream << static_cast< quint32 >( data.getImageSize().width() );
     stream << static_cast< quint32 >( data.getImageSize().height() );
 
-    /// Weights matrix.
-    for( quint32 i = 0; i < data.getNumberOfNeurons(); i++ )
+    /// Number of layers.
+    stream << static_cast< quint32 >( data.getNeuralNetworkLayers().size() );
+
+    /// Layers.
+    for( const auto& layer : data.getNeuralNetworkLayers() )
     {
-        for( quint32 j = 0; j < data.getInputSize(); j++ )
+        /// Size of weights matrix.
+        stream << static_cast< quint32 >( layer.getMatrixWidth() );
+        stream << static_cast< quint32 >( layer.getMatrixHeight() );
+
+        /// Weights matrix.
+        for( quint32 i = 0; i < layer.getMatrixWidth(); ++i )
         {
-            stream << data.getRelationshipWeight( i, j );
+            for( quint32 j = 0; j < layer.getMatrixHeight(); ++j )
+            {
+                stream << layer.getRelationshipWeight( i, j );
+            }
         }
     }
 
     /// Number of samples.
     stream << static_cast< quint32 >( data.getLearningData().size() );
 
+    /// Samples params.
     stream << data.getLearningData().front().getTargetVectorSize();
     stream << data.getLearningData().front().getInputVectorSize();
 
@@ -43,13 +51,13 @@ void NeuralNetworkSerializer::serialize( const NeuralNetworkData& data ) const
     for( const auto& sample : data.getLearningData() )
     {
         /// Target vector.
-        for( quint32 i = 0; i < sample.getTargetVectorSize(); i++ )
+        for( quint32 i = 0; i < sample.getTargetVectorSize(); ++i )
         {
             stream << sample.getTargetValue( i );
         }
 
         /// Input vector.
-        for( quint32 j = 0; j < sample.getInputVectorSize(); j++ )
+        for( quint32 j = 0; j < sample.getInputVectorSize(); ++j )
         {
             stream << sample.getInputValue( j );
         }
@@ -70,44 +78,52 @@ NeuralNetworkData NeuralNetworkSerializer::deserialize() const
 
     NeuralNetworkData result;
 
-    /// Size of weights matrix.
-    quint32 nNeurons, inputSize;
-    stream >> nNeurons;
-    stream >> inputSize;
-
     /// Image size.
     quint32 imageWidth, imageHeight;
     stream >> imageWidth;
     stream >> imageHeight;
-    if( imageHeight * imageWidth != inputSize )
-    {
-        return NeuralNetworkData();
-    }
-    result.setLayerParams(  nNeurons,
-                            QSize( qint32( imageWidth ), qint32( imageHeight ) ) );
+    result.setImageSize(  QSize( qint32( imageWidth ), qint32( imageHeight ) ) );
 
-    /// Weights matrix.
-    double weight;
-    for( quint32 i = 0; i < result.getNumberOfNeurons(); i++ )
+    /// Number of layers.
+    quint32 nLayers;
+    stream >> nLayers;
+
+    /// Samples.
+    for( int k = 0; k < static_cast< qint32 >( nLayers ); ++k )
     {
-        for( quint32 j = 0; j < result.getInputSize(); j++ )
+        /// Size of weights matrix.
+        quint32 nNeurons, inputSize;
+        stream >> nNeurons;
+        stream >> inputSize;
+
+        /// Create layer.
+        NeuralNetworkWeightsMatrix layer( nNeurons, inputSize );
+
+        /// Weights matrix.
+        double weight;
+        for( quint32 i = 0; i < nNeurons; ++i )
         {
-            stream >> weight;
-            result.setRelationshipWeight( i, j, weight );
+            for( quint32 j = 0; j < inputSize; ++j )
+            {
+                stream >> weight;
+                layer.setRelationshipWeight( i, j, weight );
+            }
         }
+
+        result.addNeuralNetworkLayer( layer );
     }
 
     /// Number of samples.
     quint32 nSamples;
     stream >> nSamples;
 
-    /// Sample sizes.
+    /// Sample params.
     quint32 sampleTargetSize, sampleInputSize;
     stream >> sampleTargetSize;
     stream >> sampleInputSize;
 
     /// Samples.
-    for( int k = 0; k < static_cast< qint32 >( nSamples ); k++ )
+    for( int k = 0; k < static_cast< qint32 >( nSamples ); ++k )
     {
         /// Create sample.
         NeuralNetworkLearningSample sample;
@@ -116,14 +132,14 @@ NeuralNetworkData NeuralNetworkSerializer::deserialize() const
 
         /// Target vector.
         uchar value;
-        for( quint32 i = 0; i < sample.getTargetVectorSize(); i++ )
+        for( quint32 i = 0; i < sample.getTargetVectorSize(); ++i )
         {
             stream >> value;
             sample.setTargetValue( i, value );
         }
 
         /// Input vector.
-        for( quint32 i = 0; i < sample.getInputVectorSize(); i++ )
+        for( quint32 i = 0; i < sample.getInputVectorSize(); ++i )
         {
             stream >> value;
             sample.setInputValue( i, value );

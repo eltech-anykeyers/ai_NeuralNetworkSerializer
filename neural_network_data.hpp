@@ -6,50 +6,32 @@
 #include <QString>
 
 #include "neural_network_learning_sample.hpp"
+#include "neural_network_weights_matrix.hpp"
 
-struct NeuralNetworkData
+class NeuralNetworkData
 {
 public:
     NeuralNetworkData();
-    explicit NeuralNetworkData( const quint32 nNeurons, const QSize& imageSize );
-    NeuralNetworkData( const NeuralNetworkData& other );
-    NeuralNetworkData( NeuralNetworkData&& other );
-    ~NeuralNetworkData();
+    explicit NeuralNetworkData( const QSize& imageSize );
+    ~NeuralNetworkData() = default;
 
-    void setLayerParams( const quint32 nNeurons,
-                         const QSize& imageSize );
-    quint32 getNumberOfNeurons() const;
-    quint32 getInputSize() const;
-    bool isNull() const;
-
-    void setRelationshipWeight( quint32 neuronNo, quint32 inputNo,
-                                double value );
-    double getRelationshipWeight( quint32 neuronNo, quint32 inputNo ) const;
-
-    template< class Iterator >
-    void setRelationshipsWeights( Iterator first, Iterator last,
-                                  const quint32 nNeurons, const QSize& imageSize  )
-    {
-        if( last - first == nNeurons * imageSize.width() * imageSize.height() )
-        {
-            setLayerParams( nNeurons, imageSize );
-            std::copy( first, last, relationshipsWeighs );
-        }
-    }
-
+    void setImageSize( const QSize& imageSize );
     const QSize& getImageSize() const;
 
-    void clearLayer();
+    bool isNull() const;
+    void clear();
 
     void setLearningData( const QVector< NeuralNetworkLearningSample >& data );
     void addLearningData( const NeuralNetworkLearningSample& sample );
+    void setNeuralNetworkLayers( const QVector< NeuralNetworkWeightsMatrix >& layers );
+    void addNeuralNetworkLayer( const NeuralNetworkWeightsMatrix& layer );
 
     const QVector< NeuralNetworkLearningSample >& getLearningData() const;
+    const QVector< NeuralNetworkWeightsMatrix >& getNeuralNetworkLayers() const;
 
 private:
     QVector< NeuralNetworkLearningSample > learningData;
-    double* relationshipsWeighs;
-    QSize weightsMatrixSize;
+    QVector< NeuralNetworkWeightsMatrix > layers;
     QSize imageSize;
 };
 

@@ -3,7 +3,7 @@
 
 #include <QString>
 
-struct NeuralNetworkLearningSample
+class NeuralNetworkLearningSample
 {
 public:
     NeuralNetworkLearningSample();
