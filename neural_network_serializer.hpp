@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QIODevice>
+#include <QDataStream>
 
 #include <memory>
 
@@ -23,6 +24,22 @@ public:
 signals:
 
 public slots:
+
+protected:
+    void writeHeader( QDataStream& stream ) const;
+    void writeNeuralNetworkLayers(
+            QDataStream& stream, const QVector< NeuralNetworkWeightsMatrix >& layers ) const;
+    void writeNeuralNetworkLearningSamples(
+            QDataStream& stream, const QVector< NeuralNetworkLearningSample >& samples ) const;
+    void writeNeuralNetworkMetaInformation(
+            QDataStream& stream, const QByteArray& metaInfo  ) const;
+    bool verifyHeader( QDataStream& stream ) const;
+    void readNeuralNetworkLayers(
+            QDataStream& stream, NeuralNetworkData& data ) const;
+    void readNeuralNetworkLearningSamples(
+            QDataStream& stream, NeuralNetworkData& data  ) const;
+    void readNeuralNetworkMetaInformation(
+            QDataStream& stream, NeuralNetworkData& data  ) const;
 
 private:
     std::unique_ptr< QIODevice > device;

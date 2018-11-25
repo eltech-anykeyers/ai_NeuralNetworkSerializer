@@ -4,33 +4,20 @@ NeuralNetworkData::NeuralNetworkData()
 {
     learningData = QVector< NeuralNetworkLearningSample >();
     layers = QVector< NeuralNetworkWeightsMatrix >();
-}
-
-NeuralNetworkData::NeuralNetworkData( const QSize& imageSize )
-    : NeuralNetworkData()
-{
-    setImageSize( imageSize );
-}
-
-void NeuralNetworkData::setImageSize( const QSize& imageSize )
-{
-    this->imageSize = imageSize;
-}
-
-const QSize& NeuralNetworkData::getImageSize() const
-{
-    return imageSize;
+    meta = QByteArray();
 }
 
 bool NeuralNetworkData::isNull() const
 {
-    return learningData.empty() && layers.empty();
+    return learningData.empty() && layers.empty() &&
+            meta.size() == 0;
 }
 
 void NeuralNetworkData::clear()
 {
     learningData.clear();
     layers.clear();
+    meta.clear();
 }
 
 void NeuralNetworkData::setLearningData(
@@ -68,6 +55,11 @@ void NeuralNetworkData::addNeuralNetworkLayer( const NeuralNetworkWeightsMatrix&
     layers.append( layer );
 }
 
+void NeuralNetworkData::setMetaInformation( const QByteArray& metaInfo )
+{
+    meta = metaInfo;
+}
+
 const QVector< NeuralNetworkLearningSample >& NeuralNetworkData::getLearningData() const
 {
     return learningData;
@@ -76,4 +68,9 @@ const QVector< NeuralNetworkLearningSample >& NeuralNetworkData::getLearningData
 const QVector< NeuralNetworkWeightsMatrix >& NeuralNetworkData::getNeuralNetworkLayers() const
 {
     return layers;
+}
+
+const QByteArray& NeuralNetworkData::getMetaInformation() const
+{
+    return meta;
 }

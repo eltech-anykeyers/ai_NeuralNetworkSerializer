@@ -12,11 +12,7 @@ class NeuralNetworkData
 {
 public:
     NeuralNetworkData();
-    explicit NeuralNetworkData( const QSize& imageSize );
     ~NeuralNetworkData() = default;
-
-    void setImageSize( const QSize& imageSize );
-    const QSize& getImageSize() const;
 
     bool isNull() const;
     void clear();
@@ -25,14 +21,16 @@ public:
     void addLearningData( const NeuralNetworkLearningSample& sample );
     void setNeuralNetworkLayers( const QVector< NeuralNetworkWeightsMatrix >& layers );
     void addNeuralNetworkLayer( const NeuralNetworkWeightsMatrix& layer );
+    void setMetaInformation( const QByteArray& metaInfo );
 
     const QVector< NeuralNetworkLearningSample >& getLearningData() const;
     const QVector< NeuralNetworkWeightsMatrix >& getNeuralNetworkLayers() const;
+    const QByteArray& getMetaInformation() const;
 
 private:
     QVector< NeuralNetworkLearningSample > learningData;
     QVector< NeuralNetworkWeightsMatrix > layers;
-    QSize imageSize;
+    QByteArray meta;
 };
 
 #endif /// NEURAL_NETWORK_DATA_HPP

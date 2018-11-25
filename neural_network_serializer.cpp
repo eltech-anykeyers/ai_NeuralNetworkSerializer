@@ -1,8 +1,6 @@
 #include "neural_network_serializer.hpp"
 #include "neural_network_learning_sample.hpp"
 
-#include <QDataStream>
-
 NeuralNetworkSerializer::NeuralNetworkSerializer( QObject* parent )
     : QObject( parent )
 {
@@ -16,15 +14,57 @@ void NeuralNetworkSerializer::serialize( const NeuralNetworkData& data ) const
     device->open( QIODevice::WriteOnly );
     QDataStream stream = QDataStream( device.get() );
 
-    /// Image size.
-    stream << static_cast< quint32 >( data.getImageSize().width() );
-    stream << static_cast< quint32 >( data.getImageSize().height() );
+    writeHeader( stream );
+    writeNeuralNetworkLayers( stream, data.getNeuralNetworkLayers() );
+    writeNeuralNetworkLearningSamples( stream, data.getLearningData() );
+    writeNeuralNetworkMetaInformation( stream, data.getMetaInformation() );
 
+    device->close();
+}
+
+NeuralNetworkData NeuralNetworkSerializer::deserialize() const
+{
+    if( !device ) return NeuralNetworkData();
+
+    device->open( QIODevice::ReadOnly );
+    QDataStream stream = QDataStream( device.get() );
+
+    auto verified = verifyHeader( stream );
+    if( !verified ) return NeuralNetworkData();
+
+    NeuralNetworkData result;
+
+    readNeuralNetworkLayers( stream, result );
+    readNeuralNetworkLearningSamples( stream, result );
+    readNeuralNetworkMetaInformation( stream, result );
+
+    device->close();
+    return result;
+}
+
+void NeuralNetworkSerializer::setDevice( std::unique_ptr< QIODevice > device )
+{
+    this->device = std::move( device );
+}
+
+const QIODevice& NeuralNetworkSerializer::getDevice() const
+{
+    return *device;
+}
+
+void NeuralNetworkSerializer::writeHeader( QDataStream& stream ) const
+{
+    ///TODO
+}
+
+void NeuralNetworkSerializer::writeNeuralNetworkLayers(
+        QDataStream& stream, const QVector< NeuralNetworkWeightsMatrix >& layers ) const
+{
     /// Number of layers.
-    stream << static_cast< quint32 >( data.getNeuralNetworkLayers().size() );
+    stream << static_cast< quint32 >( layers.size() );
 
     /// Layers.
-    for( const auto& layer : data.getNeuralNetworkLayers() )
+    for( const auto& layer : layers )
     {
         /// Size of weights matrix.
         stream << static_cast< quint32 >( layer.getMatrixWidth() );
@@ -39,16 +79,20 @@ void NeuralNetworkSerializer::serialize( const NeuralNetworkData& data ) const
             }
         }
     }
+}
 
+void NeuralNetworkSerializer::writeNeuralNetworkLearningSamples(
+        QDataStream& stream, const QVector< NeuralNetworkLearningSample >& samples ) const
+{
     /// Number of samples.
-    stream << static_cast< quint32 >( data.getLearningData().size() );
+    stream << static_cast< quint32 >( samples.size() );
 
     /// Samples params.
-    stream << data.getLearningData().front().getTargetVectorSize();
-    stream << data.getLearningData().front().getInputVectorSize();
+    stream << samples.front().getTargetVectorSize();
+    stream << samples.front().getInputVectorSize();
 
     /// Samples.
-    for( const auto& sample : data.getLearningData() )
+    for( const auto& sample : samples )
     {
         /// Target vector.
         for( quint32 i = 0; i < sample.getTargetVectorSize(); ++i )
@@ -65,30 +109,32 @@ void NeuralNetworkSerializer::serialize( const NeuralNetworkData& data ) const
         /// Mark.
         stream << sample.getMark().toStdString().c_str();
     }
-
-    device->close();
 }
 
-NeuralNetworkData NeuralNetworkSerializer::deserialize() const
+void NeuralNetworkSerializer::writeNeuralNetworkMetaInformation(
+        QDataStream& stream, const QByteArray& metaInfo ) const
 {
-    if( !device ) return NeuralNetworkData();
+    stream << static_cast< quint32 >( metaInfo.size() );
+    for( const auto& byte : metaInfo )
+    {
+        stream << static_cast< uchar >( byte );
+    }
+}
 
-    device->open( QIODevice::ReadOnly );
-    QDataStream stream = QDataStream( device.get() );
+bool NeuralNetworkSerializer::verifyHeader( QDataStream& stream ) const
+{
+    ///TODO
+    return true;
+}
 
-    NeuralNetworkData result;
-
-    /// Image size.
-    quint32 imageWidth, imageHeight;
-    stream >> imageWidth;
-    stream >> imageHeight;
-    result.setImageSize(  QSize( qint32( imageWidth ), qint32( imageHeight ) ) );
-
+void NeuralNetworkSerializer::readNeuralNetworkLayers(
+        QDataStream& stream, NeuralNetworkData& data ) const
+{
     /// Number of layers.
     quint32 nLayers;
     stream >> nLayers;
 
-    /// Samples.
+    /// Layers.
     for( int k = 0; k < static_cast< qint32 >( nLayers ); ++k )
     {
         /// Size of weights matrix.
@@ -110,9 +156,13 @@ NeuralNetworkData NeuralNetworkSerializer::deserialize() const
             }
         }
 
-        result.addNeuralNetworkLayer( layer );
+        data.addNeuralNetworkLayer( layer );
     }
+}
 
+void NeuralNetworkSerializer::readNeuralNetworkLearningSamples(
+        QDataStream& stream, NeuralNetworkData& data  ) const
+{
     /// Number of samples.
     quint32 nSamples;
     stream >> nSamples;
@@ -151,19 +201,27 @@ NeuralNetworkData NeuralNetworkSerializer::deserialize() const
         sample.setMark( QString( mark ) );
         delete[] mark;
 
-        result.addLearningData( std::move( sample ) );
+        data.addLearningData( std::move( sample ) );
+    }
+}
+
+void NeuralNetworkSerializer::readNeuralNetworkMetaInformation(
+        QDataStream& stream, NeuralNetworkData& data ) const
+{
+    /// Number of bytes.
+    quint32 nBytes;
+    stream >> nBytes;
+
+    QByteArray metaInfo;
+    metaInfo.resize( qint32( nBytes ) );
+
+    /// Bytes.
+    uchar byte;
+    for( quint32 i = 0; i < nBytes; ++i )
+    {
+        stream >> byte;
+        metaInfo[ i ] = static_cast< char >( byte );
     }
 
-    device->close();
-    return result;
-}
-
-void NeuralNetworkSerializer::setDevice( std::unique_ptr< QIODevice > device )
-{
-    this->device = std::move( device );
-}
-
-const QIODevice& NeuralNetworkSerializer::getDevice() const
-{
-    return *device;
+    data.setMetaInformation( metaInfo );
 }
